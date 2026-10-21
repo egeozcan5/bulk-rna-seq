@@ -1,0 +1,17 @@
+/data/
+/results/
+*.bam
+*.bai
+*.sam
+*.fastq*
+*.fq*
+*.rds
+*.RData
+.Rhistory
+.Ruserdata
+.Rproj.user/
+.DS_Store
+.env
+.env.*
+*.pem
+*.key
