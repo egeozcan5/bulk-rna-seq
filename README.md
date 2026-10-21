@@ -1,51 +1,71 @@
-# Bulk RNA-seq analysis
+# Bulk RNA-seq differential expression and enrichment
 
-R scripts for differential expression and enrichment analysis. The contributor confirmed permission to share these scripts. No data or results are included.
+R scripts for differential expression and functional enrichment from a gene-level count matrix. The repository covers DESeq2 and edgeR comparisons, Gene Ontology enrichment, GSEA, and an exploratory WGCNA preprocessing example.
 
-## Included work
+The workflow starts from gene-level read counts. Raw-read QC, trimming, alignment and featureCounts execution are outside the repository's scope. Input data and research results are not included.
 
-- DESeq2: two comparisons against Proliferating, PCA/MA plots, annotated DEGs and a combined DEG table (`scripts/RNAseq_DESeq2.R`).
-- edgeR: expression filtering, TMM normalization, MDS/BCV plots and quasi-likelihood tests for three supplied contrasts.
-- GO: biological-process enrichment of upregulated and downregulated genes.
-- GSEA: biological-process enrichment ranked by log fold change.
-- WGCNA: partial preprocessing, sample clustering and soft-threshold screening. No modules or hub genes are computed by the supplied script.
+## Analysis overview
 
-QC, trimming, alignment, featureCounts execution scripts were not supplied and are not represented as completed work here.
+| Script | Analysis | Main outputs |
+| --- | --- | --- |
+| `scripts/RNAseq_DESeq2.R` | DESeq2: Early vs Proliferating and Deep vs Proliferating | PCA/MA plots, annotated DEG tables and a combined DEG table |
+| `scripts/RNAseq_edgeR.R` | Expression filtering, TMM normalization and quasi-likelihood tests for the above contrasts plus Deep vs Early | All-gene, DEG, upregulated and downregulated tables for each contrast |
+| `scripts/go.R` | GO biological-process over-representation analysis of upregulated and downregulated edgeR genes | Enrichment tables, dot plots and bar plots |
+| `scripts/gsea.R` | GO biological-process GSEA using all-gene edgeR tables ranked by logFC | Enrichment tables, dot plots and enrichment plots |
+| `scripts/wgcna.R` | Expression filtering, normalization, sample clustering and soft-threshold screening | Sample-clustering PDF; soft-threshold results remain in memory |
 
-## Inputs and execution
+DESeq2 and edgeR select DEGs using adjusted significance below 0.05 and absolute log2 fold change greater than 1. GO and GSEA consume **edgeR outputs**, not DESeq2 outputs. The WGCNA script does not construct modules or identify hub genes.
 
-Run from this directory. Supply a featureCounts table at `data/gene_counts.txt`, with six annotation columns followed by nine count columns. Both edgeR and WGCNA currently assume three Proliferating, three Early and three Deep samples, in that exact order. Verify this against the real sample sheet before execution; a named sample sheet should replace positional labels before release.
+## Input format
 
-```sh
-Rscript scripts/RNAseq_DESeq2.R
-Rscript scripts/RNAseq_edgeR.R
-Rscript scripts/go.R
-Rscript scripts/gsea.R
-Rscript scripts/wgcna.R
-```
+Place a featureCounts table at `data/gene_counts.txt`, with:
 
-edgeR tables are written to `results/edgeR/`; downstream scripts read that same folder. Data and outputs are excluded from Git.
+- A `Geneid` column containing Ensembl gene identifiers suitable for human annotation.
+- Six annotation columns followed by exactly nine sample count columns.
+- Non-negative, unnormalized integer counts.
+
+**DESeq2, edgeR and WGCNA assign groups by column position**, in this exact order:
+
+| Count columns | Group |
+| --- | --- |
+| 1–3 | Proliferating |
+| 4–6 | Early |
+| 7–9 | Deep |
+
+Check the column names against the actual sample metadata before running. The scripts do not validate biological sample assignments, and an incorrect column order can silently produce incorrect comparisons. A sample-name-based metadata interface is not implemented.
 
 ## Dependencies
 
-The supplied scripts reference DESeq2, edgeR, org.Hs.eg.db, AnnotationDbi, clusterProfiler, enrichplot, ggplot2 and WGCNA. Versions used for the local execution test are recorded in `tested-package-versions.txt`. This version list is not an environment lockfile.
+Required R packages: DESeq2, edgeR, org.Hs.eg.db, AnnotationDbi, clusterProfiler, enrichplot, ggplot2 and WGCNA.
 
-## Review before interpreting results
+The previously tested R and package versions are listed in [`tested-package-versions.txt`](tested-package-versions.txt). This records the tested setup; it is not an environment lockfile or installation script. A reproducible environment definition is not yet included.
 
-- Confirm human annotation and the Ensembl identifier format against the reference used for counting.
-- GO currently uses the package default background. Review whether the background should instead be all tested, mappable genes; this draft preserves the original analysis choice.
-- GSEA ranks by logFC and retains the first occurrence of duplicated gene symbols. Review this policy and tied ranks before interpreting enrichment.
-- Confirm whether the nine-sample WGCNA exploratory analysis is suitable for the intended scientific use. The supplied workflow is incomplete.
-- Verify sample assignments and retain any required authorship acknowledgements. No reuse license has been selected.
+## Run the analyses
 
-## Changes in this draft
+Run from the repository root after supplying the count table and installing the dependencies:
 
-Simplified comments and short function calls; removed console-only inspection lines, unused package imports and unused WGCNA output folders. Aligned edgeR output paths with downstream inputs and created required output folders. Statistical thresholds, contrasts, normalization, gene filtering and ranking/background choices were preserved. Reusable GO/GSEA functions and the original WGCNA quality filter remain because they serve the analysis.
+```sh
+# Differential expression: these two analyses are independent.
+Rscript scripts/RNAseq_DESeq2.R
+Rscript scripts/RNAseq_edgeR.R
 
-Additional empty-enrichment guards were removed at the user's request. Plotting may fail when no terms pass the cutoffs.
+# Run only after edgeR completes successfully.
+Rscript scripts/go.R
+Rscript scripts/gsea.R
 
-All four scripts were run locally against the supplied count table on 21 October 2026. edgeR produced 12 CSV files, GO produced 18 table/plot files, GSEA produced 9 table/plot files, and the partial WGCNA script completed its soft-threshold scan and produced a sample-clustering PDF. No execution-stopping errors were recorded.
+# Optional, partial exploratory workflow.
+Rscript scripts/wgcna.R
+```
 
-Non-fatal warnings included an R/package build-version mismatch, a GO plotting argument warning, tied GSEA ranks and p-value estimation warnings, and WGCNA running sequentially without a parallel backend. Successful execution does not validate sample labels, statistical assumptions or biological conclusions. Results were not included in this repository.
+Tables and explicitly saved plots are written under `results/DESeq2/`, `results/edgeR/`, `results/GO/`, `results/GSEA/` and `results/WGCNA/`. The edgeR MDS/BCV plots do not have an explicit output device; noninteractive execution may create `Rplots.pdf` in the working directory.
 
-The consolidated DESeq2 script was also executed successfully against the supplied count table. It produced seven CSV tables and three PDFs under `results/DESeq2/`. The original two contrasts, default DESeq2 settings and significance thresholds were retained; redundant annotation and unused normalized-count extraction were removed. GO/GSEA scripts continue to use edgeR outputs.
+No public demonstration dataset or example outputs are included, so a fresh clone cannot reproduce the reported analysis without additional input data.
+
+## Interpretation and current limitations
+
+- **Study design:** Models use the group labels encoded in the scripts. Verify whether the actual experiment requires batch, pairing or other covariates before interpreting results.
+- **Annotation:** Confirm the organism, genome annotation and Ensembl identifier format. Annotation uses `org.Hs.eg.db`; version suffixes are removed for mapping, and ambiguous mappings use the first match.
+- **GO background:** No explicit gene universe is supplied. Evaluate whether all tested, mappable genes should define the background for the intended analysis.
+- **GSEA ranking:** Genes are ranked by logFC; the first occurrence of each duplicated gene symbol is retained. Review this policy and tied ranks. No explicit random seed is set.
+- **Empty enrichment:** Plotting is not guarded against empty enrichment results and may fail when no terms pass the cutoffs.
+- **WGCNA:** Includes expression preprocessing, sample clustering and soft-threshold screening. Module detection and downstream network analyses are outside the scope of this script.
