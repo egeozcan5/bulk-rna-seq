@@ -1,0 +1,9 @@
+R version 4.5.2 (2025-10-31)
+edgeR 4.8.2
+org.Hs.eg.db 3.22.0
+AnnotationDbi 1.72.0
+clusterProfiler 4.18.4
+enrichplot 1.30.5
+ggplot2 4.0.3
+WGCNA 1.74
+DESeq2 1.50.2 
